@@ -13,10 +13,11 @@ def enum_win(hwnd, result):
 
 def findwindow():
     toplist = []
+    result = None
     win32gui.EnumWindows(enum_win, toplist)
 
     for (hwnd, win_text) in winlist:
-        if '녹스 플레이어' in win_text:
+        if 'NoxPlayer' in win_text:
             result = hwnd
             break
 
@@ -54,29 +55,55 @@ def getData(x, y) :
     image[mask] = [0, 0, 0]
     image[mask2] = [255, 255, 255]
 
-    text = pytesseract.image_to_string(image, lang='kor', config='-c preserve_interword_space=1 --psm 4').replace("\n", "")
-    #종료(자연사) 종료(안락사) 완료(귀가) 완료(입양) 보호중 공고중
+    retry = 0
 
-    if ('종료(자연사)' in text) :
-        result['state'] = "종료(자연사)"
-    elif ('종료(안락사)' in text) :
-        result['state'] = "종료(안락사)"
-    elif ('완료(귀가)' in text) :
-        result['state'] = "완료(귀가)"
-    elif ('완료(입양)' in text) :
-        result['state'] = "완료(입양)"
-    elif ('보호중' in text) :
-        result['state'] = "보호중"
-    elif ('공고중' in text) :
-        result['state'] = "공고중"
-    else :
-        print(text)
+    while retry < 10 :
+        text = pytesseract.image_to_string(image[1:, 1:72, :], lang='kor', config='-c preserve_interword_space=1 --psm 4').replace("\n", "")
+        #종료(자연사) 종료(안락사) 완료(귀가) 완료(입양) 보호중 공고중
 
-        plt.figure()
-        plt.imshow(image)
-        plt.colorbar()
-        plt.grid(False)
-        plt.show()
+        if ('공고' in text):
+            result['state'] = "공고중"
+            break
+        elif ('보호중' in text):
+            result['state'] = "보호중"
+            break
+        else :
+            text = pytesseract.image_to_string(image[1:, 1:106, :], lang='kor',config='-c preserve_interword_space=1 --psm 4').replace("\n", "")
+
+            if ('종' in text and '료' in text) :
+                print(text)
+                if ('자' in text):
+                    result['state'] = "종료(자연사)"
+                    break
+                elif ('안' in text):
+                    result['state'] = "종료(안락사)"
+                    break
+                elif ('기' in text):
+                    result['state'] = "종료(기증)"
+                    break
+                elif ('방' in text) :
+                    result['state'] = "종료(방사)"
+                    break
+            elif ('완' in text or '왼' in text and '료' in text) :
+                if ('귀가' in text) :
+                    result['state'] = "완료(귀가)"
+                    break
+                elif ('입양' in text) :
+                    result['state'] = "완료(입양)"
+                    break
+            else :
+                if (retry == 9) :
+                    print(text)
+                    return None
+                    plt.imshow(image[1:, 1:106, :])
+                    plt.show()
+
+                    a = input("text")
+
+                    result['state'] = a
+                retry += 1
+                print("retry : ", retry)
+                time.sleep(1)
 
     image = np.array(ImageGrab.grab(bbox=(x, y + 528, x + 599, y + 810)))
     image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
@@ -108,11 +135,17 @@ def getData(x, y) :
                     elif ('09' in tempt) :
                         result['weight'] = tempt.split('09')[0].replace(" ", "")
         elif ('공고번호' in t) :
-            result['number'] = splitToPart(t)[1].strip()
+            try:
+                result['number'] = splitToPart(t)[1].strip()
+            except IndexError :
+                pass
         elif ('공고기간' in t) :
             result['period'] = splitToPart(t)[1].strip()
         elif ('발견장소' in t) :
-            result['location'] = splitToPart(t)[1].strip()
+            try :
+                result['location'] = splitToPart(t)[1].strip()
+            except IndexError :
+                pass
         elif ('특이사항' in t) :
             result['feature'] = splitToPart(t)[1].strip()
         elif ('보호센터' in t) :
@@ -134,24 +167,37 @@ if (__name__ == '__main__') :
 
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract'
     hwnd = findwindow()
-    x1, y1, x2, y2 = win32gui.GetWindowRect(hwnd)
-    print(x2 - x1, y2 - y1)
-    pydirectinput.click(x1 +20, y1 + 20)
-    pydirectinput.press("enter")
-
-    while True :
+    if (hwnd) :
+        count = 0
+        x1, y1, x2, y2 = win32gui.GetWindowRect(hwnd)
+        print(x2 - x1, y2 - y1)
+        pydirectinput.click(x1 +20, y1 + 20)
         pydirectinput.press("enter")
-        time.sleep(0.5)
 
-        if (isEnd(x1, y1)) :
-            break
 
-        data_list.append(getData(x1, y1))
 
-        pydirectinput.press("esc")
-        pydirectinput.press("down")
+        while True :
+            pydirectinput.press("enter")
+            time.sleep(0.5)
 
-    data_set = pd.DataFrame(data_list)
-    data_set.columns = ['state', 'kind', 'sex', 'neutralization', 'color', 'birth', 'weight', 'number', 'period', 'location', 'feature', 'center', 'department']
+            if (isEnd(x1, y1)) :
+                break
 
-    data_set.to_csv("train_data.csv", mode="w")
+            print("number : ", count)
+            temp_data = getData(x1, y1)
+            if (type(temp_data) == pd.Series) :
+                data_list.append(temp_data)
+
+                pydirectinput.press("esc")
+                time.sleep(1)
+                pydirectinput.press("up")
+                count += 1
+                time.sleep(1)
+            else :
+                break
+
+
+        data_set = pd.DataFrame(data_list)
+        data_set.columns = ['state', 'kind', 'sex', 'neutralization', 'color', 'birth', 'weight', 'number', 'period', 'location', 'feature', 'center', 'department']
+
+        data_set.to_csv("train_data.csv", mode="w")
