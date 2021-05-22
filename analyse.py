@@ -116,7 +116,7 @@ def model_evaluation(label, predict) :
 
 def TrainWithXGBoost() :
     # 초기 데이터 분석
-    train_data = pd.read_csv('train_data.csv', sep=',', index_col=0)
+    train_data = pd.read_csv('train/train_data.csv', sep=',', index_col=0)
     accuracy = 0
 
     # 5-Fold validation
@@ -169,7 +169,7 @@ def TrainWithXGBoost() :
     #shap.summary_plot(shap_value, test_x, plot_type='bar').show()
 
 def TrainWithXGBoost2() :
-    train_data = pd.read_csv('train_data.csv', sep=',', index_col=0)
+    train_data = pd.read_csv('train/train_data.csv', sep=',', index_col=0)
     accuracy = 0
 
     sm = SMOTE(random_state=15, sampling_strategy=0.6)
@@ -218,7 +218,7 @@ def TrainWithXGBoost2() :
     print(accuracy / 5, '%')
 
 def TestWithXGBoost() :
-    train_data = pd.read_csv('train_data.csv', sep=',', index_col=0)
+    train_data = pd.read_csv('train/train_data.csv', sep=',', index_col=0)
     accuracy = 0
 
     t = train_data
@@ -255,7 +255,7 @@ def TestWithXGBoost() :
     print(accuracy, '%')
 
 def TrainDataGraph() :
-    train_data = pd.read_csv('train_data.csv', sep=',', index_col=0)
+    train_data = pd.read_csv('train/train_data.csv', sep=',', index_col=0)
 
     print(train_data['weight'].value_counts())
 
